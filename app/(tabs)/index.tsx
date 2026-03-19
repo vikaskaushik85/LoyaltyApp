@@ -1,8 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const cards = [
     { id: '1', name: 'Curtis Stone', stamps: 7, total: 10, rewards: 2 },
     { id: '2', name: 'The Daily Grind', stamps: 5, total: 8, rewards: 1 },
@@ -21,7 +24,10 @@ export default function HomeScreen() {
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>Welcome back!</Text>
           <Text style={styles.heroSubtitle}>Collect stamps and get free coffee at your favorite cafes</Text>
-          <TouchableOpacity style={styles.heroButton}>
+          <TouchableOpacity
+            style={styles.heroButton}
+            onPress={() => router.push('/scanner')}
+          >
             <Text style={styles.heroButtonText}>Scan QR Code</Text>
           </TouchableOpacity>
         </View>

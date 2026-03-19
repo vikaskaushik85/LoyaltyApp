@@ -43,6 +43,10 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "supabaseUrl": "https://dtptjtyayerzubavdphi.supabase.co",
+      "supabaseKey": "sb_publishable_gNDsmy3JY1qY1mGNcQX7uA_5PUWn2SR"
     }
   }
 }
