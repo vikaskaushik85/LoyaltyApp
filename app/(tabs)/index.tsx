@@ -2,9 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../utils/supabase';
+import { pendingReward } from '../../utils/rewardState';
 
 interface Card {
   id: string;
@@ -20,11 +21,18 @@ export default function HomeScreen() {
   const router = useRouter();
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [rewardModal, setRewardModal] = useState<{ cafeName: string; stampCount: number } | null>(null);
 
-  // Fetch loyalty cards whenever screen comes into focus
+  // Fetch loyalty cards whenever screen comes into focus, and check
+  // whether the scanner left a pending reward notification for us.
   useFocusEffect(
     useCallback(() => {
       fetchCards();
+      if (pendingReward.active) {
+        const info = { cafeName: pendingReward.cafeName, stampCount: pendingReward.stampCount };
+        pendingReward.clear(); // clear immediately so it only fires once
+        setRewardModal(info);
+      }
     }, [])
   );
 
@@ -81,6 +89,35 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Free Coffee Congratulations Modal */}
+      <Modal
+        visible={rewardModal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRewardModal(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <MaterialCommunityIcons name="coffee" size={72} color="#D97706" />
+            <Text style={styles.modalTitle}>Congratulations! 🎉</Text>
+            <Text style={styles.modalMessage}>
+              {"You've earned "}{rewardModal?.stampCount}{" stamps!\nYou deserve a free coffee!"}
+            </Text>
+            {rewardModal?.cafeName ? (
+              <Text style={styles.modalCafe}>at {rewardModal.cafeName}</Text>
+            ) : null}
+            <Pressable
+              style={styles.modalButton}
+              onPress={() => setRewardModal(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Claim reward"
+            >
+              <Text style={styles.modalButtonText}>Claim My Free Coffee ☕️</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -183,4 +220,60 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginTop: 12 },
   emptySubtext: { fontSize: 14, color: '#6B7280', marginTop: 8 },
+  // Reward modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 17,
+    color: '#4B5563',
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 26,
+  },
+  modalCafe: {
+    fontSize: 15,
+    color: '#D97706',
+    fontWeight: '600',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#D97706',
+    borderRadius: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    marginTop: 28,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

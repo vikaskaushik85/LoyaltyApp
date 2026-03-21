@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { Alert, ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '@/utils/supabase';
+import { pendingReward } from '@/utils/rewardState';
 
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -177,6 +178,14 @@ export default function ScannerScreen() {
       // 5. Show in-UI success overlay for 1 second, then auto-navigate home
       console.log('🎉 Scan successful! Stamps:', newStamps);
       const rewardsTrigger = newStamps % 10 === 0;
+
+      // Store reward info so the Home screen can show the congrats popup
+      // immediately upon arrival — no extra DB call needed.
+      if (rewardsTrigger) {
+        pendingReward.active = true;
+        pendingReward.cafeName = cafe.name;
+        pendingReward.stampCount = newStamps;
+      }
 
       setIsLoading(false);
       setSuccessInfo({ stamps: newStamps, cafeName: cafe.name, isReward: rewardsTrigger });
