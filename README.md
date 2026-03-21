@@ -54,6 +54,8 @@ scripts/
 3. Both iphone and laptop should be on the same wifi
 4. You can the QR code to run the app on your phone.
 
+Note : If you are using public wifi, you can have to use `npx expo start --tunnel` as public wifi could have restrictions on firewall
+
 ![alt text](image.png)
 
 ## Project Scripts
