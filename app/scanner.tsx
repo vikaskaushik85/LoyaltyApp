@@ -10,10 +10,15 @@ export default function ScannerScreen() {
   const router = useRouter();
   const cameraRef = useRef<CameraView>(null);
   const [isLoading, setIsLoading] = useState(false);
-  // useRef for the scan guard — updates synchronously, not subject to React's
-  // async state batching. Prevents the native camera from firing a second DB
-  // insert before the first re-render with hasScanned=true arrives.
-  const isProcessingRef = useRef(false);
+  const [successInfo, setSuccessInfo] = useState<{
+    stamps: number;
+    cafeName: string;
+    isReward: boolean;
+  } | null>(null);
+  // Synchronous ref guard — unlike useState, this updates immediately and
+  // prevents the native camera from firing a second DB insert before React
+  // has had a chance to re-render.
+  const isScanning = useRef(false);
 
   const handleGoBack = () => {
     // router.back() dismisses the scanner modal and returns to the existing
@@ -47,9 +52,9 @@ export default function ScannerScreen() {
   }
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (!data || isProcessingRef.current) return;
+    if (!data || isScanning.current) return;
 
-    isProcessingRef.current = true; // Synchronous guard — blocks re-entrant calls immediately
+    isScanning.current = true; // Blocks re-entrant calls before any await
     setIsLoading(true);
 
     try {
@@ -71,7 +76,7 @@ export default function ScannerScreen() {
             {
               text: 'Scan Again',
               onPress: () => {
-                isProcessingRef.current = false;
+                isScanning.current = false;
                 setIsLoading(false);
               },
               style: 'default',
@@ -94,7 +99,7 @@ export default function ScannerScreen() {
             {
               text: 'Scan Again',
               onPress: () => {
-                isProcessingRef.current = false;
+                isScanning.current = false;
                 setIsLoading(false);
               },
             },
@@ -169,41 +174,16 @@ export default function ScannerScreen() {
         console.log('✅ New card created');
       }
 
-      // 5. Show success - auto navigate after 2 seconds
+      // 5. Show in-UI success overlay for 1 second, then auto-navigate home
       console.log('🎉 Scan successful! Stamps:', newStamps);
       const rewardsTrigger = newStamps % 10 === 0;
-      
-      // Auto-navigate after 3 seconds for success
-      const successTimeout = setTimeout(() => {
-        handleGoBack();
-      }, 3000);
-      
-      Alert.alert(
-        rewardsTrigger ? '🎉 Reward Earned!' : '✅ Stamp Added',
-        rewardsTrigger
-          ? `You've earned a free coffee at ${cafe.name}!\nTotal stamps: ${newStamps}\n\n(Going back in 3 seconds...)`
-          : `Stamp added at ${cafe.name}\nStamps: ${newStamps}/10\n\n(Going back in 3 seconds...)`,
-        [
-          {
-            text: 'Go Home Now',
-            onPress: () => {
-              clearTimeout(successTimeout);
-              handleGoBack();
-            },
-            style: 'default',
-          },
-          {
-            text: 'Scan Another',
-            onPress: () => {
-              clearTimeout(successTimeout);
-              isProcessingRef.current = false;
-              setIsLoading(false);
-            },
-            style: 'cancel',
-          },
-        ],
-        { cancelable: false }
-      );
+
+      setIsLoading(false);
+      setSuccessInfo({ stamps: newStamps, cafeName: cafe.name, isReward: rewardsTrigger });
+
+      setTimeout(() => {
+        router.back();
+      }, 1000);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('❌ Scan failed:', errorMessage, error);
@@ -214,7 +194,7 @@ export default function ScannerScreen() {
           {
             text: 'Try Again',
             onPress: () => {
-              isProcessingRef.current = false;
+              isScanning.current = false;
               setIsLoading(false);
             },
             style: 'default',
@@ -256,6 +236,26 @@ export default function ScannerScreen() {
         </View>
         <View style={styles.overlayBottom} />
       </View>
+
+      {/* Success Overlay — shown for 1 second then auto-navigates */}
+      {successInfo && (
+        <View style={styles.successOverlay}>
+          <MaterialCommunityIcons
+            name={successInfo.isReward ? 'gift-outline' : 'check-circle-outline'}
+            size={80}
+            color="#D97706"
+          />
+          <Text style={styles.successTitle}>
+            {successInfo.isReward ? '🎉 Reward Earned!' : '✅ Stamp Added!'}
+          </Text>
+          <Text style={styles.successText}>
+            {successInfo.isReward
+              ? `Free coffee at ${successInfo.cafeName}!`
+              : `${successInfo.stamps} / 10 stamps at ${successInfo.cafeName}`}
+          </Text>
+          <Text style={styles.successSubtext}>Returning home...</Text>
+        </View>
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -420,5 +420,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
+  },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    gap: 12,
+  },
+  successTitle: {
+    color: '#fff',
+    fontSize: 26,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  successText: {
+    color: '#D97706',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  successSubtext: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
+    marginTop: 8,
   },
 });
