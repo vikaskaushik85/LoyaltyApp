@@ -54,9 +54,9 @@ export const DEFAULT_CONFIG: RemoteConfig = {
   backgroundLight: '#F9FAFB',
 
   // Strings
-  appName: 'CafeLoyalty',
+  appName: 'PerkUp',
   heroTitle: 'Welcome back!',
-  heroSubtitle: 'Collect stamps and get free coffee at your favorite cafes',
+  heroSubtitle: 'Collect stamps and earn rewards at your favorite spots',
   scanButtonLabel: 'Scan QR Code',
   exploreTitle: 'Explore Cafes',
   rewardModalTitle: 'Congratulations! 🎉',

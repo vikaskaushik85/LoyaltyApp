@@ -6,11 +6,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '@/utils/supabase';
 import { pendingReward } from '@/utils/rewardState';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const router = useRouter();
   const cfg = useRemoteConfig();
+  const { user } = useAuth();
   const cameraRef = useRef<CameraView>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{
@@ -112,14 +114,20 @@ export default function ScannerScreen() {
 
       console.log('✅ Cafe found:', cafe.name);
 
-      // 2. For testing, use hardcoded user_id
-      const testUserId = 'test-user-123';
+      // 2. Use the authenticated user's ID
+      const authUserId = user?.id;
+      if (!authUserId) {
+        Alert.alert('Error', 'You must be signed in to scan.');
+        isScanning.current = false;
+        setIsLoading(false);
+        return;
+      }
 
       // 3. Single transactional RPC: records scan, gets/creates loyalty card,
       //    increments stamps, and if target is reached resets to 0 + inserts reward.
       console.log('📝 Calling record_stamp RPC...');
       const { data: rpcResult, error: rpcError } = await supabase.rpc('record_stamp', {
-        p_user_id: testUserId,
+        p_user_id: authUserId,
         p_cafe_id: cafe.id,
         p_qr_code: data,
         p_target: cfg.stampsPerCard,

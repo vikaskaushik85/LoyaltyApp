@@ -7,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../utils/supabase';
 import { pendingReward } from '../../utils/rewardState';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
+import { useAuth } from '@/hooks/use-auth';
+import { PerkUpLogo } from '@/components/perkup-logo';
 
 interface Card {
   id: string;
@@ -16,11 +18,11 @@ interface Card {
   rewards: number;
 }
 
-const testUserId = 'test-user-123';
-
 export default function HomeScreen() {
   const router = useRouter();
   const cfg = useRemoteConfig();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [rewardModal, setRewardModal] = useState<{ cafeName: string; stampCount: number } | null>(null);
@@ -43,7 +45,7 @@ export default function HomeScreen() {
       const { count, error } = await supabase
         .from('user_rewards')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', testUserId)
+        .eq('user_id', userId)
         .eq('status', 'unclaimed');
       if (!error && count !== null) setUnclaimedCount(count);
     } catch {
@@ -66,7 +68,7 @@ export default function HomeScreen() {
             name
           )
         `)
-        .eq('user_id', testUserId);
+        .eq('user_id', userId);
 
       if (loyaltyError) {
         console.error('❌ Error fetching loyalty cards:', loyaltyError);
@@ -136,7 +138,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <MaterialCommunityIcons name="coffee-outline" size={28} color={cfg.brandPrimary} />
+            <PerkUpLogo size={32} color={cfg.brandPrimary} />
             <Text style={styles.headerTitle}>{cfg.appName}</Text>
           </View>
           <TouchableOpacity

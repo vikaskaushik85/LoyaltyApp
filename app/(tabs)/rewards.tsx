@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../utils/supabase';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
+import { useAuth } from '@/hooks/use-auth';
 
 interface Reward {
   id: string;
@@ -22,10 +23,10 @@ interface Reward {
   created_at: string;
 }
 
-const testUserId = 'test-user-123';
-
 export default function RewardsScreen() {
   const cfg = useRemoteConfig();
+  const { user } = useAuth();
+  const userId = user?.id ?? '';
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export default function RewardsScreen() {
           created_at,
           cafes:cafe_id ( name )
         `)
-        .eq('user_id', testUserId)
+        .eq('user_id', userId)
         .eq('status', 'unclaimed')
         .order('created_at', { ascending: false });
 
