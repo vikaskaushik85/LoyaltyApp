@@ -1,5 +1,6 @@
 import React from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRemoteConfig } from '@/hooks/use-remote-config';
 
 // Dummy Data
 const CAFES = [
@@ -11,6 +12,8 @@ const CAFES = [
 ];
 
 export default function ExploreScreen() {
+  const cfg = useRemoteConfig();
+
   const renderCafe = ({ item }: { item: typeof CAFES[0] }) => (
     <TouchableOpacity style={styles.card}>
       <Image source={{ uri: item.image }} style={styles.image} />
@@ -26,7 +29,7 @@ export default function ExploreScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Explore Cafes</Text>
+      <Text style={styles.title}>{cfg.exploreTitle}</Text>
       <FlatList
         data={CAFES}
         renderItem={renderCafe}

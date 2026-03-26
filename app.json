@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vikas.kaushik85.MyCoffeeApp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -46,7 +50,11 @@
     },
     "extra": {
       "supabaseUrl": "https://dtptjtyayerzubavdphi.supabase.co",
-      "supabaseKey": "sb_publishable_gNDsmy3JY1qY1mGNcQX7uA_5PUWn2SR"
+      "supabaseKey": "sb_publishable_gNDsmy3JY1qY1mGNcQX7uA_5PUWn2SR",
+      "router": {},
+      "eas": {
+        "projectId": "6908867e-cc61-45b6-8d61-0cc1f18260bd"
+      }
     }
   }
 }
