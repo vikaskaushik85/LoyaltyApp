@@ -25,7 +25,7 @@ async function fetchRemoteConfig(): Promise<Partial<RemoteConfig>> {
     .eq('is_active', true);
 
   if (error || !data) {
-    console.warn('⚠️ Remote config fetch failed, using defaults:', error?.message);
+    if (__DEV__) console.warn('Remote config fetch failed, using defaults:', error?.message);
     return {};
   }
 
@@ -59,7 +59,7 @@ export function RemoteConfigProvider({ children }: ProviderProps) {
         }
       } catch {
         // Fail-safe: defaults are already set
-        console.warn('⚠️ Remote config fetch threw, using defaults');
+        if (__DEV__) console.warn('Remote config fetch threw, using defaults');
       } finally {
         if (!cancelled) setIsReady(true);
       }

@@ -7,6 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../utils/supabase';
 import { pendingReward } from '../../utils/rewardState';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
+import { useAuth } from '@/hooks/use-auth';
+import { PerkUpLogo } from '@/components/perkup-logo';
+import { useAppColors } from '@/hooks/use-app-colors';
 
 interface Card {
   id: string;
@@ -16,11 +19,12 @@ interface Card {
   rewards: number;
 }
 
-const testUserId = 'test-user-123';
-
 export default function HomeScreen() {
   const router = useRouter();
   const cfg = useRemoteConfig();
+  const { user } = useAuth();
+  const colors = useAppColors();
+  const userId = user?.id ?? '';
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [rewardModal, setRewardModal] = useState<{ cafeName: string; stampCount: number } | null>(null);
@@ -43,7 +47,7 @@ export default function HomeScreen() {
       const { count, error } = await supabase
         .from('user_rewards')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', testUserId)
+        .eq('user_id', userId)
         .eq('status', 'unclaimed');
       if (!error && count !== null) setUnclaimedCount(count);
     } catch {
@@ -66,10 +70,10 @@ export default function HomeScreen() {
             name
           )
         `)
-        .eq('user_id', testUserId);
+        .eq('user_id', userId);
 
       if (loyaltyError) {
-        console.error('❌ Error fetching loyalty cards:', loyaltyError);
+        if (__DEV__) console.error('Error fetching loyalty cards:', loyaltyError);
         setCards([]);
         return;
       }
@@ -89,7 +93,7 @@ export default function HomeScreen() {
 
       setCards(transformedCards);
     } catch (error) {
-      console.error('❌ Failed to fetch cards:', error);
+      if (__DEV__) console.error('Failed to fetch cards:', error);
       setCards([]);
     } finally {
       setIsLoading(false);
@@ -102,7 +106,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: cfg.backgroundLight }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Free Coffee Congratulations Modal */}
       <Modal
         visible={rewardModal !== null}
@@ -111,10 +115,10 @@ export default function HomeScreen() {
         onRequestClose={() => setRewardModal(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
             <MaterialCommunityIcons name="coffee" size={72} color={cfg.brandPrimary} />
-            <Text style={styles.modalTitle}>{cfg.rewardModalTitle}</Text>
-            <Text style={styles.modalMessage}>{rewardMessage}</Text>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{cfg.rewardModalTitle}</Text>
+            <Text style={[styles.modalMessage, { color: colors.textSecondary }]}>{rewardMessage}</Text>
             {rewardModal?.cafeName ? (
               <Text style={[styles.modalCafe, { color: cfg.brandPrimary }]}>
                 at {rewardModal.cafeName}
@@ -134,10 +138,10 @@ export default function HomeScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.card }]}>
           <View style={styles.headerLeft}>
-            <MaterialCommunityIcons name="coffee-outline" size={28} color={cfg.brandPrimary} />
-            <Text style={styles.headerTitle}>{cfg.appName}</Text>
+            <PerkUpLogo size={32} color={cfg.brandPrimary} />
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{cfg.appName}</Text>
           </View>
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/rewards' as any)}
@@ -167,18 +171,18 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Your Cards</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Your Cards</Text>
 
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={cfg.brandPrimary} />
-            <Text style={styles.loadingText}>Loading your cards...</Text>
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading your cards...</Text>
           </View>
         ) : cards.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="coffee-outline" size={48} color={cfg.brandPrimary} />
-            <Text style={styles.emptyText}>No loyalty cards yet</Text>
-            <Text style={styles.emptySubtext}>Scan a cafe's QR code to get started!</Text>
+            <Text style={[styles.emptyText, { color: colors.text }]}>No loyalty cards yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Scan a cafe&apos;s QR code to get started!</Text>
           </View>
         ) : (
           <>

@@ -6,11 +6,13 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { supabase } from '@/utils/supabase';
 import { pendingReward } from '@/utils/rewardState';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const router = useRouter();
   const cfg = useRemoteConfig();
+  const { user } = useAuth();
   const cameraRef = useRef<CameraView>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{
@@ -22,6 +24,8 @@ export default function ScannerScreen() {
   // prevents the native camera from firing a second DB insert before React
   // has had a chance to re-render.
   const isScanning = useRef(false);
+  const lastScanTimes = useRef<Map<string, number>>(new Map());
+  const SCAN_COOLDOWN_MS = 30000;
 
   const handleGoBack = () => {
     router.back();
@@ -56,11 +60,18 @@ export default function ScannerScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (!data || isScanning.current) return;
 
-    isScanning.current = true; // Blocks re-entrant calls before any await
+    const now = Date.now();
+    const lastTime = lastScanTimes.current.get(data);
+    if (lastTime && now - lastTime < SCAN_COOLDOWN_MS) {
+      return;
+    }
+
+    isScanning.current = true;
+    lastScanTimes.current.set(data, now);
     setIsLoading(true);
 
     try {
-      console.log('🔍 Scanning QR code:', data);
+      if (__DEV__) console.log('Scanning QR code:', data);
 
       // 1. Find cafe by QR code
       const { data: cafe, error: cafeError } = await supabase
@@ -70,7 +81,7 @@ export default function ScannerScreen() {
         .single();
 
       if (cafeError) {
-        console.error('❌ Cafe lookup error:', cafeError);
+        if (__DEV__) console.error('Cafe lookup error:', cafeError);
         Alert.alert(
           'Unknown QR Code',
           `This QR code is not registered in our system.\nScanned: ${data}\n\nError: ${cafeError.message}`,
@@ -93,7 +104,7 @@ export default function ScannerScreen() {
       }
 
       if (!cafe) {
-        console.error('❌ Cafe not found for QR:', data);
+        if (__DEV__) console.error('Cafe not found for QR:', data);
         Alert.alert(
           'Cafe Not Found',
           `No cafe registered with code: ${data}`,
@@ -110,33 +121,39 @@ export default function ScannerScreen() {
         return;
       }
 
-      console.log('✅ Cafe found:', cafe.name);
+      if (__DEV__) console.log('Cafe found:', cafe.name);
 
-      // 2. For testing, use hardcoded user_id
-      const testUserId = 'test-user-123';
+      // 2. Use the authenticated user's ID
+      const authUserId = user?.id;
+      if (!authUserId) {
+        Alert.alert('Error', 'You must be signed in to scan.');
+        isScanning.current = false;
+        setIsLoading(false);
+        return;
+      }
 
       // 3. Single transactional RPC: records scan, gets/creates loyalty card,
       //    increments stamps, and if target is reached resets to 0 + inserts reward.
-      console.log('📝 Calling record_stamp RPC...');
+      if (__DEV__) console.log('Calling record_stamp RPC...');
       const { data: rpcResult, error: rpcError } = await supabase.rpc('record_stamp', {
-        p_user_id: testUserId,
+        p_user_id: authUserId,
         p_cafe_id: cafe.id,
         p_qr_code: data,
         p_target: cfg.stampsPerCard,
       });
 
       if (rpcError) {
-        console.error('❌ record_stamp RPC error:', rpcError);
+        if (__DEV__) console.error('record_stamp RPC error:', rpcError);
         throw new Error(`Failed to record stamp: ${rpcError.message}`);
       }
 
       const newStamps: number = rpcResult.new_stamps;
       const rewardsTrigger: boolean = rpcResult.is_reward;
 
-      console.log('✅ RPC complete — stamps:', newStamps, 'reward:', rewardsTrigger);
+      if (__DEV__) console.log('RPC complete — stamps:', newStamps, 'reward:', rewardsTrigger);
 
       // 4. Show in-UI success overlay then auto-navigate home
-      console.log('🎉 Scan successful! Stamps:', newStamps);
+      if (__DEV__) console.log('Scan successful! Stamps:', newStamps);
 
       if (rewardsTrigger) {
         pendingReward.active = true;
@@ -152,9 +169,9 @@ export default function ScannerScreen() {
       }, cfg.scanRedirectDelayMs);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('❌ Scan failed:', errorMessage, error);
+      if (__DEV__) console.error('Scan failed:', errorMessage, error);
       Alert.alert(
-        '❌ Scan Failed',
+        'Scan Failed',
         `${errorMessage}\n\nTroubleshooting:\n1. Check internet connection\n2. Verify QR code is valid`,
         [
           {
