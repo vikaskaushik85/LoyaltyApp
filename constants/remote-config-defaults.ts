@@ -69,12 +69,12 @@ export const DEFAULT_CONFIG: RemoteConfig = {
   pointMultiplier: 1,
 
   // Feature flags
-  showExploreTab: true,
+  showExploreTab: false,
   showSocialLogin: false,
   showTwitterLogin: false,
 
   // Auth
-  oauthRedirectUrl: 'myapp://auth/callback',
+  oauthRedirectUrl: 'perkup://auth/callback',
   googleOAuthEnabled: false,
   facebookOAuthEnabled: false,
   twitterOAuthEnabled: false,

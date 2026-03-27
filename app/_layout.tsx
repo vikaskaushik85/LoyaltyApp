@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RemoteConfigProvider } from '@/hooks/use-remote-config';
 import { AuthProvider, useAuth } from '@/hooks/use-auth';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -44,7 +45,7 @@ function RootNavigator() {
       <Stack>
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
         <Stack.Screen
           name="scanner"
           options={{
@@ -60,10 +61,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RemoteConfigProvider>
-        <RootNavigator />
-      </RemoteConfigProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <RemoteConfigProvider>
+          <RootNavigator />
+        </RemoteConfigProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

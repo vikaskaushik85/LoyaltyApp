@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../utils/supabase';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
 import { useAuth } from '@/hooks/use-auth';
+import { useAppColors } from '@/hooks/use-app-colors';
 
 interface Reward {
   id: string;
@@ -26,6 +27,7 @@ interface Reward {
 export default function RewardsScreen() {
   const cfg = useRemoteConfig();
   const { user } = useAuth();
+  const colors = useAppColors();
   const userId = user?.id ?? '';
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +56,7 @@ export default function RewardsScreen() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Error fetching rewards:', error);
+        if (__DEV__) console.error('Error fetching rewards:', error);
         setRewards([]);
         return;
       }
@@ -69,7 +71,7 @@ export default function RewardsScreen() {
 
       setRewards(mapped);
     } catch (err) {
-      console.error('❌ Failed to fetch rewards:', err);
+      if (__DEV__) console.error('Failed to fetch rewards:', err);
       setRewards([]);
     } finally {
       setIsLoading(false);
@@ -82,11 +84,12 @@ export default function RewardsScreen() {
       const { error } = await supabase
         .from('user_rewards')
         .update({ status: 'claimed' })
-        .eq('id', rewardId);
+        .eq('id', rewardId)
+        .eq('user_id', userId);
 
       if (error) {
         Alert.alert('Error', 'Failed to claim reward. Please try again.');
-        console.error('❌ Claim error:', error);
+        if (__DEV__) console.error('Claim error:', error);
         return;
       }
 
@@ -94,7 +97,7 @@ export default function RewardsScreen() {
       setRewards((prev) => prev.filter((r) => r.id !== rewardId));
     } catch (err) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
-      console.error('❌ Claim threw:', err);
+      if (__DEV__) console.error('Claim threw:', err);
     } finally {
       setClaimingId(null);
     }
@@ -106,15 +109,15 @@ export default function RewardsScreen() {
   };
 
   const renderReward = ({ item }: { item: Reward }) => (
-    <View style={[styles.card, { borderLeftColor: cfg.brandPrimary }]}>
+    <View style={[styles.card, { borderLeftColor: cfg.brandPrimary, backgroundColor: colors.card }]}>
       <View style={styles.cardBody}>
         <View style={[styles.iconCircle, { backgroundColor: cfg.brandAccentLightest }]}>
           <MaterialCommunityIcons name="coffee" size={28} color={cfg.brandPrimary} />
         </View>
         <View style={styles.cardText}>
-          <Text style={styles.cardTitle}>Free Coffee</Text>
-          <Text style={styles.cardCafe}>{item.cafeName}</Text>
-          <Text style={styles.cardDate}>Earned {formatDate(item.created_at)}</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Free Coffee</Text>
+          <Text style={[styles.cardCafe, { color: colors.textSecondary }]}>{item.cafeName}</Text>
+          <Text style={[styles.cardDate, { color: colors.textTertiary }]}>Earned {formatDate(item.created_at)}</Text>
         </View>
       </View>
       <TouchableOpacity
@@ -133,23 +136,23 @@ export default function RewardsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: cfg.backgroundLight }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.card }]}>
         <MaterialCommunityIcons name="gift-outline" size={28} color={cfg.brandPrimary} />
-        <Text style={styles.headerTitle}>My Rewards</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>My Rewards</Text>
       </View>
 
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={cfg.brandPrimary} />
-          <Text style={styles.loadingText}>Loading rewards...</Text>
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading rewards...</Text>
         </View>
       ) : rewards.length === 0 ? (
         <View style={styles.centered}>
           <MaterialCommunityIcons name="gift-open-outline" size={64} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No unclaimed rewards</Text>
-          <Text style={styles.emptySubtext}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No unclaimed rewards</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
             Collect {cfg.stampsPerCard} stamps at a cafe to earn a free coffee!
           </Text>
         </View>

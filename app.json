@@ -1,18 +1,20 @@
 {
   "expo": {
-    "name": "MyCoffeeApp",
-    "slug": "MyCoffeeApp",
+    "name": "PerkUp",
+    "slug": "PerkUp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mycoffeeapp",
+    "scheme": "perkup",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vikas.kaushik85.MyCoffeeApp",
+      "bundleIdentifier": "com.vikas.kaushik85.PerkUp",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "PerkUp needs camera access to scan QR codes at cafes to collect loyalty stamps.",
+        "NSFaceIDUsageDescription": "PerkUp uses Face ID for secure biometric login."
       }
     },
     "android": {
@@ -31,6 +33,9 @@
     },
     "plugins": [
       "expo-router",
+      "expo-camera",
+      "expo-apple-authentication",
+      "expo-local-authentication",
       [
         "expo-splash-screen",
         {
@@ -49,8 +54,6 @@
       "reactCompiler": true
     },
     "extra": {
-      "supabaseUrl": "https://dtptjtyayerzubavdphi.supabase.co",
-      "supabaseKey": "sb_publishable_gNDsmy3JY1qY1mGNcQX7uA_5PUWn2SR",
       "router": {},
       "eas": {
         "projectId": "6908867e-cc61-45b6-8d61-0cc1f18260bd"
