@@ -25,7 +25,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "output": "static",
@@ -56,7 +62,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6908867e-cc61-45b6-8d61-0cc1f18260bd"
+        "projectId": "f8ebb018-ba8b-4fa8-8620-066ad111df58"
       }
     }
   }
