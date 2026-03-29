@@ -8,6 +8,25 @@ import { pendingReward } from '@/utils/rewardState';
 import { useRemoteConfig } from '@/hooks/use-remote-config';
 import { useAuth } from '@/hooks/use-auth';
 
+interface DynamicQRPayload {
+  cafe_id: string;
+  ts: number;
+  nonce: string;
+  sig: string;
+}
+
+function parseDynamicQR(data: string): DynamicQRPayload | null {
+  try {
+    const parsed = JSON.parse(data);
+    if (parsed.cafe_id && parsed.ts && parsed.nonce && parsed.sig) {
+      return parsed as DynamicQRPayload;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const router = useRouter();
@@ -20,12 +39,7 @@ export default function ScannerScreen() {
     cafeName: string;
     isReward: boolean;
   } | null>(null);
-  // Synchronous ref guard — unlike useState, this updates immediately and
-  // prevents the native camera from firing a second DB insert before React
-  // has had a chance to re-render.
   const isScanning = useRef(false);
-  const lastScanTimes = useRef<Map<string, number>>(new Map());
-  const SCAN_COOLDOWN_MS = 30000;
 
   const handleGoBack = () => {
     router.back();
@@ -60,70 +74,12 @@ export default function ScannerScreen() {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (!data || isScanning.current) return;
 
-    const now = Date.now();
-    const lastTime = lastScanTimes.current.get(data);
-    if (lastTime && now - lastTime < SCAN_COOLDOWN_MS) {
-      return;
-    }
-
     isScanning.current = true;
-    lastScanTimes.current.set(data, now);
     setIsLoading(true);
 
     try {
       if (__DEV__) console.log('Scanning QR code:', data);
 
-      // 1. Find cafe by QR code
-      const { data: cafe, error: cafeError } = await supabase
-        .from('cafes')
-        .select('*')
-        .eq('qr_code', data)
-        .single();
-
-      if (cafeError) {
-        if (__DEV__) console.error('Cafe lookup error:', cafeError);
-        Alert.alert(
-          'Unknown QR Code',
-          `This QR code is not registered in our system.\nScanned: ${data}\n\nError: ${cafeError.message}`,
-          [
-            {
-              text: 'Scan Again',
-              onPress: () => {
-                isScanning.current = false;
-                setIsLoading(false);
-              },
-              style: 'default',
-            },
-            {
-              text: 'Go Back',
-              onPress: handleGoBack,
-            },
-          ]
-        );
-        return;
-      }
-
-      if (!cafe) {
-        if (__DEV__) console.error('Cafe not found for QR:', data);
-        Alert.alert(
-          'Cafe Not Found',
-          `No cafe registered with code: ${data}`,
-          [
-            {
-              text: 'Scan Again',
-              onPress: () => {
-                isScanning.current = false;
-                setIsLoading(false);
-              },
-            },
-          ]
-        );
-        return;
-      }
-
-      if (__DEV__) console.log('Cafe found:', cafe.name);
-
-      // 2. Use the authenticated user's ID
       const authUserId = user?.id;
       if (!authUserId) {
         Alert.alert('Error', 'You must be signed in to scan.');
@@ -132,37 +88,103 @@ export default function ScannerScreen() {
         return;
       }
 
-      // 3. Single transactional RPC: records scan, gets/creates loyalty card,
-      //    increments stamps, and if target is reached resets to 0 + inserts reward.
-      if (__DEV__) console.log('Calling record_stamp RPC...');
-      const { data: rpcResult, error: rpcError } = await supabase.rpc('record_stamp', {
-        p_user_id: authUserId,
-        p_cafe_id: cafe.id,
-        p_qr_code: data,
+      // Parse dynamic QR payload
+      const payload = parseDynamicQR(data);
+
+      if (!payload) {
+        Alert.alert(
+          'Invalid QR Code',
+          'This QR code is not a valid PerkUp code. Please ask the cashier to show the current code.',
+          [
+            {
+              text: 'Scan Again',
+              onPress: () => {
+                isScanning.current = false;
+                setIsLoading(false);
+              },
+            },
+            { text: 'Go Back', onPress: handleGoBack },
+          ]
+        );
+        return;
+      }
+
+      // Client-side pre-check: reject obviously expired codes before network call
+      const ageSeconds = Math.floor(Date.now() / 1000) - payload.ts;
+      if (ageSeconds > 35) {
+        Alert.alert(
+          'Code Expired',
+          'This QR code has expired. Please ask the cashier for a fresh code.',
+          [
+            {
+              text: 'Scan Again',
+              onPress: () => {
+                isScanning.current = false;
+                setIsLoading(false);
+              },
+            },
+            { text: 'Go Back', onPress: handleGoBack },
+          ]
+        );
+        return;
+      }
+
+      // All real validation happens server-side via the RPC
+      if (__DEV__) console.log('Calling validate_dynamic_scan RPC...');
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('validate_dynamic_scan', {
+        p_payload: payload,
         p_target: cfg.stampsPerCard,
       });
 
       if (rpcError) {
-        if (__DEV__) console.error('record_stamp RPC error:', rpcError);
-        throw new Error(`Failed to record stamp: ${rpcError.message}`);
+        if (__DEV__) console.error('validate_dynamic_scan RPC error:', rpcError);
+        throw new Error(`Server error: ${rpcError.message}`);
       }
 
+      // Check for application-level errors returned by the RPC
+      if (rpcResult.error) {
+        const errorMap: Record<string, string> = {
+          EXPIRED: 'This QR code has expired. Please ask for a new code.',
+          REPLAY: 'This QR code has already been used. Please ask for a new code.',
+          INVALID_SIGNATURE: 'This QR code is invalid. It may have been tampered with.',
+          RATE_LIMITED: rpcResult.message || 'Please wait 15 minutes between visits.',
+          UNKNOWN_CAFE: 'This cafe is not registered in our system.',
+          INVALID_PAYLOAD: 'Invalid QR code format.',
+        };
+
+        const message = errorMap[rpcResult.error] || rpcResult.message || 'Scan failed.';
+        Alert.alert(
+          'Scan Rejected',
+          message,
+          [
+            {
+              text: 'Scan Again',
+              onPress: () => {
+                isScanning.current = false;
+                setIsLoading(false);
+              },
+            },
+            { text: 'Go Back', onPress: handleGoBack },
+          ]
+        );
+        return;
+      }
+
+      // Success!
       const newStamps: number = rpcResult.new_stamps;
       const rewardsTrigger: boolean = rpcResult.is_reward;
+      const cafeName: string = rpcResult.cafe_name;
 
-      if (__DEV__) console.log('RPC complete — stamps:', newStamps, 'reward:', rewardsTrigger);
-
-      // 4. Show in-UI success overlay then auto-navigate home
-      if (__DEV__) console.log('Scan successful! Stamps:', newStamps);
+      if (__DEV__) console.log('Scan success — stamps:', newStamps, 'reward:', rewardsTrigger);
 
       if (rewardsTrigger) {
         pendingReward.active = true;
-        pendingReward.cafeName = cafe.name;
+        pendingReward.cafeName = cafeName;
         pendingReward.stampCount = newStamps;
       }
 
       setIsLoading(false);
-      setSuccessInfo({ stamps: newStamps, cafeName: cafe.name, isReward: rewardsTrigger });
+      setSuccessInfo({ stamps: newStamps, cafeName, isReward: rewardsTrigger });
 
       setTimeout(() => {
         router.back();
@@ -172,7 +194,7 @@ export default function ScannerScreen() {
       if (__DEV__) console.error('Scan failed:', errorMessage, error);
       Alert.alert(
         'Scan Failed',
-        `${errorMessage}\n\nTroubleshooting:\n1. Check internet connection\n2. Verify QR code is valid`,
+        `${errorMessage}\n\nPlease check your internet connection and try again.`,
         [
           {
             text: 'Try Again',
